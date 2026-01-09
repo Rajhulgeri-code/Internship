@@ -4,9 +4,10 @@ import { motion } from 'motion/react';
 import { ArrowDown, Code, Wrench, FileText, Users, TrendingUp, Award } from 'lucide-react';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
-import headerImage1 from 'figma:asset/f1cde6c5104ecbae816e478f19f5461f26aa05c8.png';
-import headerImage2 from 'figma:asset/1bb620bdf49f76519fb05a50d31681e67a18d324.png';
-import headerImage3 from 'figma:asset/2f631e0f286f8190ea8857ff48566ecc6e95802b.png';
+import headerImage1 from "../../assets/f1cde6c5104ecbae816e478f19f5461f26aa05c8.png";
+import headerImage2 from "../../assets/1bb620bdf49f76519fb05a50d31681e67a18d324.png";
+import headerImage3 from "../../assets/2f631e0f286f8190ea8857ff48566ecc6e95802b.png";
+
 
 const slides = [
   {

@@ -45,4 +45,13 @@ export const login = async (req: Request, res: Response) => {
 
     res.status(200).json({
       success: true,
-      message:
+      message: "Login successful",
+      data: result
+    });
+  } catch (error: any) {
+    res.status(401).json({
+      success: false,
+      message: error.message || "Login failed"
+    });
+  }
+};

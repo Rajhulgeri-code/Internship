@@ -1,0 +1,15 @@
+// src/types/index.ts
+import { Request } from "express";
+
+export interface AuthRequest extends Request {
+  user?: {
+    userId: string;
+    email: string;
+    role: string;
+  };
+}
+
+export enum UserRole {
+  ADMIN = "admin",
+  CLIENT = "client"
+}

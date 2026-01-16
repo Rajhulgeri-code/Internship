@@ -1,39 +1,70 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { loginUser as apiLogin, logoutUser as apiLogout, getCurrentUser, getToken } from '../services/api';
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: { name: string; role: string; email: string } | null;
-  login: (email: string, password: string) => boolean;
+  user: User | null;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<{ name: string; role: string; email: string } | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = (email: string, password: string) => {
-    // Mock authentication
-    if (email && password) {
+  // Check if user is already logged in on mount
+  useEffect(() => {
+    const token = getToken();
+    const savedUser = getCurrentUser();
+    
+    if (token && savedUser) {
       setIsAuthenticated(true);
-      setUser({
-        name: 'Admin User',
-        role: 'Administrator',
-        email: email
-      });
-      return true;
+      setUser(savedUser);
     }
-    return false;
+    
+    setLoading(false);
+  }, []);
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const response = await apiLogin({ email, password });
+      
+      if (response.success && response.data) {
+        // Check if user is admin
+        if (response.data.user.role !== 'admin') {
+          throw new Error('Access denied. Admin credentials required.');
+        }
+
+        setIsAuthenticated(true);
+        setUser(response.data.user);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
+    }
   };
 
   const logout = () => {
+    apiLogout();
     setIsAuthenticated(false);
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

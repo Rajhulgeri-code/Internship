@@ -12,7 +12,7 @@ export const registerUser = async (
   // Check if user already exists
   const existingUser = await User.findOne({ email });
   if (existingUser) {
-    throw new Error("User already exists");
+    throw new Error("User already exists with this email");
   }
 
   // Hash password
@@ -48,13 +48,13 @@ export const loginUser = async (email: string, password: string) => {
   // Find user
   const user = await User.findOne({ email });
   if (!user) {
-    throw new Error("Invalid credentials");
+    throw new Error("User not Registered");
   }
 
   // Check password
   const isPasswordValid = await comparePassword(password, user.password);
   if (!isPasswordValid) {
-    throw new Error("Invalid credentials");
+    throw new Error("Incorrect password. Please try again");
   }
 
   // Generate token

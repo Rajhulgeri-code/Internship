@@ -1,10 +1,38 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { loginClient, registerClient, logoutClient, getCurrentUser, getToken } from '../../services/api';
+interface Address {
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+}
 
 interface User {
   id: string;
+  name: string;
   email: string;
   companyName: string;
+  phoneNumber: string;
+  address: Address;
+  industry?: string;
+  companySize?: string;
+  website?: string;
+  role: string;
+}
+
+interface SignupData {
   name: string;
+  email: string;
+  password: string;
+  companyName: string;
+  phoneNumber: string;
+  address: Address;
+  industry?: string;
+  companySize?: string;
+  website?: string;
+  taxId?: string;
+  registrationNumber?: string;
 }
 
 interface AuthContextType {
@@ -15,56 +43,31 @@ interface AuthContextType {
   isAuthenticated: boolean;
 }
 
-interface SignupData {
-  companyName: string;
-  name: string;
-  email: string;
-  password: string;
-}
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    // Check for stored user on mount
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    const currentUser = getCurrentUser();
+    if (currentUser) {
+      setUser(currentUser);
     }
   }, []);
 
   const login = async (email: string, password: string) => {
-    // Mock login - in real app, this would call an API
-    // For demo purposes, we'll accept any credentials
-    const mockUser: User = {
-      id: '1',
-      email,
-      companyName: 'Tech Corp',
-      name: 'John Doe',
-    };
-    
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
+    const response = await loginClient({ email, password });
+    setUser(response.data.client);
   };
 
   const signup = async (data: SignupData) => {
-    // Mock signup
-    const newUser: User = {
-      id: Date.now().toString(),
-      email: data.email,
-      companyName: data.companyName,
-      name: data.name,
-    };
-    
-    setUser(newUser);
-    localStorage.setItem('user', JSON.stringify(newUser));
+    const response = await registerClient(data);
+    setUser(response.data.client);
   };
 
   const logout = () => {
+    logoutClient();
     setUser(null);
-    localStorage.removeItem('user');
   };
 
   return (

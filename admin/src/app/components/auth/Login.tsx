@@ -13,21 +13,38 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError('');
+  
+  if (!email || !password) {
+    setError('Please enter both email and password');
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    console.log('Attempting login...');
     
-    if (!email || !password) {
-      setError('Please enter both email and password');
-      return;
-    }
-
-    const success = login(email, password);
+    // Call the backend API through AuthContext
+    const success = await login(email, password);
+    
+    console.log('Login result:', success);
+    
     if (!success) {
-      setError('Invalid credentials');
+      setError('Invalid email or password. Please try again.');
     }
-  };
+    
+  } catch (err: any) {
+    console.error('Login error:', err);
+    setError(err.message || 'Login failed. Please check your credentials.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900 p-4 relative overflow-hidden">
@@ -64,11 +81,12 @@ export default function Login() {
               <Label htmlFor="email">Admin Email / Username</Label>
               <Input
                 id="email"
-                type="text"
-                placeholder="admin@innoinfinite.com"
+                type="email"
+                placeholder="admin@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-11"
+                disabled={loading}
               />
             </div>
 
@@ -81,6 +99,7 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="h-11"
+                disabled={loading}
               />
             </div>
 
@@ -90,6 +109,7 @@ export default function Login() {
                   id="remember"
                   checked={rememberMe}
                   onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                  disabled={loading}
                 />
                 <label
                   htmlFor="remember"
@@ -103,12 +123,12 @@ export default function Login() {
               </a>
             </div>
 
-            <Button type="submit" className="w-full h-11 text-base">
-              Login to Dashboard
+            <Button type="submit" className="w-full h-11 text-base" disabled={loading}>
+              {loading ? 'Logging in...' : 'Login to Dashboard'}
             </Button>
 
             <p className="text-center text-sm text-gray-500 mt-4">
-              Demo: Use any email/password to login
+              Use your registered admin credentials
             </p>
           </form>
         </CardContent>

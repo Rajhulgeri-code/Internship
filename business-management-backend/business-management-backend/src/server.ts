@@ -2,6 +2,7 @@
 import app from "./app";
 import { connectDB } from "./config/db";
 import { config } from "./config/env";
+import "./config/cloudinary"; 
 
 const startServer = async () => {
   try {

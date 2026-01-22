@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -31,37 +31,37 @@ import {
   SelectValue,
 } from '../ui/select';
 import { toast } from 'sonner';
+import { uploadDocument, getAllDocuments, deleteDocument as apiDeleteDocument, getToken } from '../../services/api';
 
 interface Document {
-  id: number;
-  name: string;
-  type: string;
-  size: string;
-  uploadedBy: string;
-  date: string;
-  category: string;
-  source: 'client' | 'admin';
+  _id?: string;
+  id?: number;
+  title: string;
+  name?: string;
+  type?: string;
+  fileType?: string;
+  size?: string;
+  fileSize?: number;
+  uploadedBy?: string;
+  date?: string;
+  createdAt?: string;
+  category?: string;
+  source?: 'client' | 'admin';
   client?: string;
   project?: string;
+  projectId?: string;
   description?: string;
+  fileUrl?: string;
+  fileName?: string;
 }
 
-// Client Documents - uploaded by clients from client portal
+// Client Documents - uploaded by clients from client portal (mock for now)
 const mockClientDocuments: Document[] = [
-  { id: 1, name: 'Requirements_Doc_v2.pdf', type: 'PDF', size: '3.2 MB', uploadedBy: 'John Smith (Tech Corp)', date: '2026-01-08', category: 'Requirements', source: 'client', client: 'Tech Corp Inc', project: 'Website Redesign' },
-  { id: 2, name: 'Brand_Guidelines.pdf', type: 'PDF', size: '8.4 MB', uploadedBy: 'Sarah Johnson (Global Solutions)', date: '2026-01-07', category: 'Design', source: 'client', client: 'Global Solutions Ltd', project: 'Mobile App Development' },
-  { id: 3, name: 'Content_Assets.zip', type: 'Archive', size: '24.1 MB', uploadedBy: 'Mike Anderson (Innovation Hub)', date: '2026-01-06', category: 'Assets', source: 'client', client: 'Innovation Hub', project: 'API Integration' },
-  { id: 4, name: 'Project_Brief.docx', type: 'Word', size: '456 KB', uploadedBy: 'Emily Davis (Digital Ventures)', date: '2026-01-05', category: 'Planning', source: 'client', client: 'Digital Ventures', project: 'E-commerce Platform' },
-  { id: 5, name: 'Logo_Files.zip', type: 'Archive', size: '12.3 MB', uploadedBy: 'Lisa Chen (NextGen Tech)', date: '2026-01-04', category: 'Design', source: 'client', client: 'NextGen Tech', project: 'Website Redesign' },
-];
-
-// Admin Documents - uploaded internally by admin
-const mockAdminDocuments: Document[] = [
-  { id: 101, name: 'Project_Proposal_TechCorp.pdf', type: 'PDF', size: '2.4 MB', uploadedBy: 'Admin', date: '2026-01-08', category: 'Proposals', source: 'admin', project: 'Website Redesign', description: 'Detailed project proposal for Tech Corp website redesign' },
-  { id: 102, name: 'Technical_Specifications.pdf', type: 'PDF', size: '5.1 MB', uploadedBy: 'Admin', date: '2026-01-07', category: 'Technical', source: 'admin', project: 'Mobile App Development', description: 'Technical architecture and specifications document' },
-  { id: 103, name: 'Contract_Template_2026.docx', type: 'Word', size: '156 KB', uploadedBy: 'Admin', date: '2026-01-06', category: 'Contracts', source: 'admin', description: 'Standard service contract template' },
-  { id: 104, name: 'Team_Onboarding_Guide.pdf', type: 'PDF', size: '3.8 MB', uploadedBy: 'Admin', date: '2026-01-05', category: 'Internal', source: 'admin', description: 'Employee onboarding and training materials' },
-  { id: 105, name: 'API_Documentation_v3.pdf', type: 'PDF', size: '2.1 MB', uploadedBy: 'Admin', date: '2026-01-04', category: 'Technical', source: 'admin', project: 'API Integration', description: 'Complete API documentation for integration project' },
+  { id: 1, name: 'Requirements_Doc_v2.pdf', type: 'PDF', size: '3.2 MB', uploadedBy: 'John Smith (Tech Corp)', date: '2026-01-08', category: 'Requirements', source: 'client', client: 'Tech Corp Inc', project: 'Website Redesign', title: 'Requirements Doc v2' },
+  { id: 2, name: 'Brand_Guidelines.pdf', type: 'PDF', size: '8.4 MB', uploadedBy: 'Sarah Johnson (Global Solutions)', date: '2026-01-07', category: 'Design', source: 'client', client: 'Global Solutions Ltd', project: 'Mobile App Development', title: 'Brand Guidelines' },
+  { id: 3, name: 'Content_Assets.zip', type: 'Archive', size: '24.1 MB', uploadedBy: 'Mike Anderson (Innovation Hub)', date: '2026-01-06', category: 'Assets', source: 'client', client: 'Innovation Hub', project: 'API Integration', title: 'Content Assets' },
+  { id: 4, name: 'Project_Brief.docx', type: 'Word', size: '456 KB', uploadedBy: 'Emily Davis (Digital Ventures)', date: '2026-01-05', category: 'Planning', source: 'client', client: 'Digital Ventures', project: 'E-commerce Platform', title: 'Project Brief' },
+  { id: 5, name: 'Logo_Files.zip', type: 'Archive', size: '12.3 MB', uploadedBy: 'Lisa Chen (NextGen Tech)', date: '2026-01-04', category: 'Design', source: 'client', client: 'NextGen Tech', project: 'Website Redesign', title: 'Logo Files' },
 ];
 
 const fileIcons = {
@@ -72,6 +72,9 @@ const fileIcons = {
   Text: <FileText className="h-5 w-5 text-gray-500" />,
   Excel: <FileText className="h-5 w-5 text-green-600" />,
   Archive: <Folder className="h-5 w-5 text-orange-500" />,
+  'application/pdf': <FileText className="h-5 w-5 text-red-500" />,
+  'image/jpeg': <Image className="h-5 w-5 text-green-500" />,
+  'image/png': <Image className="h-5 w-5 text-green-500" />,
 };
 
 const projects = ['Website Redesign', 'Mobile App Development', 'API Integration', 'Database Migration', 'E-commerce Platform', 'Cloud Infrastructure'];
@@ -83,8 +86,10 @@ export default function Documents() {
   const [selectedClientFilter, setSelectedClientFilter] = useState('All');
   const [selectedProjectFilter, setSelectedProjectFilter] = useState('All');
   const [clientDocuments, setClientDocuments] = useState<Document[]>(mockClientDocuments);
-  const [adminDocuments, setAdminDocuments] = useState<Document[]>(mockAdminDocuments);
+  const [adminDocuments, setAdminDocuments] = useState<Document[]>([]);
   const [isAddAdminDocDialogOpen, setIsAddAdminDocDialogOpen] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [newAdminDocument, setNewAdminDocument] = useState({
     title: '',
     description: '',
@@ -92,14 +97,33 @@ export default function Documents() {
     category: '',
   });
 
+  // Fetch admin documents from backend
+  useEffect(() => {
+    fetchAdminDocuments();
+  }, []);
+
+  const fetchAdminDocuments = async () => {
+    try {
+      const token = getToken();
+      if (!token) return;
+
+      const response = await getAllDocuments(token);
+      if (response.success) {
+        setAdminDocuments(response.data);
+      }
+    } catch (error: any) {
+      console.error('Error fetching documents:', error);
+    }
+  };
+
   // Get unique clients and projects for filters
   const uniqueClients = ['All', ...Array.from(new Set(clientDocuments.map(doc => doc.client).filter(Boolean)))];
   const uniqueProjects = ['All', ...Array.from(new Set(clientDocuments.map(doc => doc.project).filter(Boolean)))];
 
   // Filter client documents
   const filteredClientDocuments = clientDocuments.filter(doc => {
-    const matchesSearch = doc.name.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
-                         doc.uploadedBy.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
+    const matchesSearch = (doc.name || doc.title).toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
+                         (doc.uploadedBy && doc.uploadedBy.toLowerCase().includes(clientSearchQuery.toLowerCase())) ||
                          (doc.client && doc.client.toLowerCase().includes(clientSearchQuery.toLowerCase())) ||
                          (doc.project && doc.project.toLowerCase().includes(clientSearchQuery.toLowerCase()));
     const matchesClient = selectedClientFilter === 'All' || doc.client === selectedClientFilter;
@@ -109,35 +133,83 @@ export default function Documents() {
 
   // Filter admin documents
   const filteredAdminDocuments = adminDocuments.filter(doc => {
-    const matchesSearch = doc.name.toLowerCase().includes(adminSearchQuery.toLowerCase()) ||
-                         doc.category.toLowerCase().includes(adminSearchQuery.toLowerCase()) ||
+    const matchesSearch = (doc.title || doc.fileName || '').toLowerCase().includes(adminSearchQuery.toLowerCase()) ||
+                         (doc.category && doc.category.toLowerCase().includes(adminSearchQuery.toLowerCase())) ||
                          (doc.project && doc.project.toLowerCase().includes(adminSearchQuery.toLowerCase()));
     return matchesSearch;
   });
 
-  const handleAddAdminDocument = () => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedFile(file);
+      
+      // Auto-fill title if empty
+      if (!newAdminDocument.title) {
+        setNewAdminDocument({ ...newAdminDocument, title: file.name });
+      }
+      
+      toast.success(`Selected: ${file.name}`);
+    }
+  };
+
+  const handleAddAdminDocument = async () => {
     if (!newAdminDocument.title || !newAdminDocument.category) {
       toast.error('Please fill in title and category');
       return;
     }
 
-    const doc: Document = {
-      id: adminDocuments.length + 101,
-      name: newAdminDocument.title,
-      type: 'PDF',
-      size: '1.2 MB',
-      uploadedBy: 'Admin',
-      date: new Date().toISOString().split('T')[0],
-      category: newAdminDocument.category,
-      source: 'admin',
-      project: newAdminDocument.project || undefined,
-      description: newAdminDocument.description || undefined,
-    };
+    if (!selectedFile) {
+      toast.error('Please select a file to upload');
+      return;
+    }
 
-    setAdminDocuments([doc, ...adminDocuments]);
-    setNewAdminDocument({ title: '', description: '', project: '', category: '' });
-    setIsAddAdminDocDialogOpen(false);
-    toast.success('Admin document added successfully!');
+    setUploadProgress(true);
+
+    try {
+      const token = getToken();
+      if (!token) {
+        toast.error('You must be logged in');
+        return;
+      }
+
+      // Create FormData
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('title', newAdminDocument.title);
+      formData.append('category', newAdminDocument.category);
+      if (newAdminDocument.description) {
+        formData.append('description', newAdminDocument.description);
+      }
+      if (newAdminDocument.project && newAdminDocument.project !== 'none') {
+        formData.append('project', newAdminDocument.project);
+      }
+
+      // Upload to backend
+      const response = await uploadDocument(formData, token);
+
+      if (response.success) {
+        toast.success('Document uploaded successfully!');
+        
+        // Refresh document list
+        await fetchAdminDocuments();
+        
+        // Reset form
+        setNewAdminDocument({ title: '', description: '', project: '', category: '' });
+        setSelectedFile(null);
+        setIsAddAdminDocDialogOpen(false);
+        
+        // Reset file input
+        const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+        if (fileInput) {
+          fileInput.value = '';
+        }
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Upload failed');
+    } finally {
+      setUploadProgress(false);
+    }
   };
 
   const handleDeleteClientDocument = (docId: number) => {
@@ -145,13 +217,38 @@ export default function Documents() {
     toast.success('Client document deleted successfully');
   };
 
-  const handleDeleteAdminDocument = (docId: number) => {
-    setAdminDocuments(adminDocuments.filter(d => d.id !== docId));
-    toast.success('Admin document deleted successfully');
+  const handleDeleteAdminDocument = async (docId: string) => {
+    try {
+      const token = getToken();
+      if (!token) {
+        toast.error('You must be logged in');
+        return;
+      }
+
+      const response = await apiDeleteDocument(docId, token);
+      
+      if (response.success) {
+        toast.success('Document deleted successfully');
+        await fetchAdminDocuments();
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Delete failed');
+    }
   };
 
-  const handleDownload = (docName: string) => {
-    toast.success(`Downloading ${docName}...`);
+  const handleDownload = (fileUrl: string, fileName: string) => {
+    window.open(fileUrl, '_blank');
+    toast.success(`Opening ${fileName}...`);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
   };
 
   return (
@@ -210,7 +307,9 @@ export default function Documents() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Storage Used</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">24.8 GB</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">
+                  {formatFileSize(adminDocuments.reduce((sum, doc) => sum + (doc.fileSize || 0), 0))}
+                </p>
               </div>
               <div className="w-12 h-12 bg-cyan-100 rounded-lg flex items-center justify-center">
                 <Folder className="h-6 w-6 text-cyan-600" />
@@ -296,7 +395,7 @@ export default function Documents() {
                         <TableCell className="font-medium">
                           <div className="flex items-center space-x-2">
                             {fileIcons[doc.type as keyof typeof fileIcons] || <File className="h-5 w-5 text-gray-500" />}
-                            <span>{doc.name}</span>
+                            <span>{doc.name || doc.title}</span>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -317,10 +416,10 @@ export default function Documents() {
                             <Button variant="ghost" size="sm" title="View document">
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDownload(doc.name)} title="Download document">
+                            <Button variant="ghost" size="sm" onClick={() => doc.name && handleDownload('', doc.name)} title="Download document">
                               <Download className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDeleteClientDocument(doc.id)} title="Delete document">
+                            <Button variant="ghost" size="sm" onClick={() => doc.id && handleDeleteClientDocument(doc.id)} title="Delete document">
                               <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>
                           </div>
@@ -406,7 +505,7 @@ export default function Documents() {
                         <SelectValue placeholder="Select project" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {projects.map(project => (
                           <SelectItem key={project} value={project}>{project}</SelectItem>
                         ))}
@@ -418,10 +517,24 @@ export default function Documents() {
                   <Label htmlFor="file-upload">File Upload *</Label>
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
                     <Upload className="h-12 w-12 mx-auto text-gray-400 mb-3" />
-                    <p className="text-sm text-gray-600 mb-1">Drag & drop your file here, or click to browse</p>
-                    <p className="text-xs text-gray-500">Supported formats: PDF, DOC, DOCX, XLS, XLSX, ZIP (Max 50MB)</p>
-                    <Input id="file-upload" type="file" className="hidden" />
-                    <Button variant="outline" size="sm" className="mt-3">
+                    <p className="text-sm text-gray-600 mb-1">
+                      {selectedFile ? `Selected: ${selectedFile.name}` : 'Drag & drop your file here, or click to browse'}
+                    </p>
+                    <p className="text-xs text-gray-500">Supported formats: PDF, DOC, DOCX, XLS, XLSX, ZIP, Images (Max 10MB)</p>
+                    <Input 
+                      id="file-upload" 
+                      type="file" 
+                      className="hidden" 
+                      onChange={handleFileSelect}
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.jpg,.jpeg,.png"
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-3"
+                      onClick={() => document.getElementById('file-upload')?.click()}
+                      type="button"
+                    >
                       Choose File
                     </Button>
                   </div>
@@ -431,8 +544,12 @@ export default function Documents() {
                 <Button variant="outline" onClick={() => setIsAddAdminDocDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleAddAdminDocument} className="bg-blue-600 hover:bg-blue-700">
-                  Add Document
+                <Button 
+                  onClick={handleAddAdminDocument} 
+                  className="bg-blue-600 hover:bg-blue-700"
+                  disabled={uploadProgress}
+                >
+                  {uploadProgress ? 'Uploading...' : 'Add Document'}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -479,19 +596,19 @@ export default function Documents() {
                 <TableBody>
                   {filteredAdminDocuments.length > 0 ? (
                     filteredAdminDocuments.map((doc) => (
-                      <TableRow key={doc.id} className="hover:bg-gray-50">
+                      <TableRow key={doc._id} className="hover:bg-gray-50">
                         <TableCell className="font-medium">
                           <div className="flex items-center space-x-2">
-                            {fileIcons[doc.type as keyof typeof fileIcons] || <File className="h-5 w-5 text-gray-500" />}
-                            <span>{doc.name}</span>
+                            {fileIcons[doc.fileType as keyof typeof fileIcons] || <File className="h-5 w-5 text-gray-500" />}
+                            <span>{doc.fileName || doc.title}</span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{doc.type}</Badge>
+                          <Badge variant="outline">{doc.fileType?.split('/')[1]?.toUpperCase() || 'FILE'}</Badge>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                            {doc.category}
+                            {doc.category || '-'}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -502,16 +619,31 @@ export default function Documents() {
                             {doc.description || '-'}
                           </span>
                         </TableCell>
-                        <TableCell className="text-sm">{doc.date}</TableCell>
+                        <TableCell className="text-sm">{doc.createdAt && formatDate(doc.createdAt)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end space-x-2">
-                            <Button variant="ghost" size="sm" title="View document">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              title="View document"
+                              onClick={() => doc.fileUrl && window.open(doc.fileUrl, '_blank')}
+                            >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDownload(doc.name)} title="Download document">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => doc.fileUrl && doc.fileName && handleDownload(doc.fileUrl, doc.fileName)} 
+                              title="Download document"
+                            >
                               <Download className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDeleteAdminDocument(doc.id)} title="Delete document">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => doc._id && handleDeleteAdminDocument(doc._id)} 
+                              title="Delete document"
+                            >
                               <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>
                           </div>
@@ -521,7 +653,7 @@ export default function Documents() {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                        No admin documents found
+                        No admin documents found. Click "Add Document" to upload your first file.
                       </TableCell>
                     </TableRow>
                   )}

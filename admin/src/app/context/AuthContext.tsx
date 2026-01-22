@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { loginUser as apiLogin, logoutUser as apiLogout, getCurrentUser, getToken } from '../services/api';
+
 interface User {
   id: string;
   name: string;
@@ -37,23 +38,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
+      console.log('AuthContext: Attempting login for', email);
+      
       const response = await apiLogin({ email, password });
+      
+      console.log('AuthContext: API response:', response);
       
       if (response.success && response.data) {
         // Check if user is admin
         if (response.data.user.role !== 'admin') {
+          console.error('AuthContext: User is not admin');
           throw new Error('Access denied. Admin credentials required.');
         }
 
+        console.log('AuthContext: Login successful');
         setIsAuthenticated(true);
         setUser(response.data.user);
         return true;
       }
       
+      console.error('AuthContext: Login failed - invalid response');
       return false;
-    } catch (error) {
-      console.error('Login error:', error);
-      return false;
+      
+    } catch (error: any) {
+      console.error('AuthContext: Login error:', error);
+      // Re-throw the error so the Login component can display it
+      throw error;
     }
   };
 

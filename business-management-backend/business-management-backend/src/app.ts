@@ -4,6 +4,8 @@ import cors from "cors";
 import authRoutes from "./modules/auth/auth.routes";
 import documentRoutes from "./modules/documents/document.routes";
 import clientRoutes from "./modules/clients/client.routes";
+import clientDocumentRoutes from "./modules/clients/client-document.routes";
+import projectRoutes from "./modules/clients/project.routes";
 import { errorMiddleware } from "./middlewares/error.middleware";
 
 const app = express();
@@ -32,7 +34,13 @@ app.use("/api/auth", authRoutes);
 // Client routes
 app.use("/api/clients", clientRoutes);
 
-// Document routes
+// Client document routes (protected)
+app.use("/api/clients/documents", clientDocumentRoutes);
+
+// Client project routes (protected)
+app.use("/api/clients/projects", projectRoutes);
+
+// Document routes (admin)
 app.use("/api/documents", documentRoutes);
 
 // Error handling middleware (must be last)

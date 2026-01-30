@@ -1,24 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { FolderOpen, Search, Filter, Plus } from 'lucide-react';
-
-const mockProjects = [
-  { id: 1, name: 'CAD Design Project', service: 'Engineering Design', status: 'In Progress', date: '2025-01-05', progress: 65 },
-  { id: 2, name: 'Web Application Development', service: 'Software Development', status: 'Completed', date: '2024-12-20', progress: 100 },
-  { id: 3, name: 'Technical Manual Creation', service: 'Technical Documentation', status: 'Submitted', date: '2025-01-03', progress: 10 },
-  { id: 4, name: 'Mobile App UI/UX Design', service: 'UI / UX Design', status: 'In Progress', date: '2025-01-01', progress: 45 },
-  { id: 5, name: 'Data Analytics Dashboard', service: 'Data & AI Solutions', status: 'In Review', date: '2024-12-28', progress: 90 },
-  { id: 6, name: 'Engineering Team Augmentation', service: 'Staffing', status: 'In Progress', date: '2024-12-15', progress: 70 },
-  { id: 7, name: 'Product Documentation', service: 'Technical Documentation', status: 'Completed', date: '2024-12-10', progress: 100 },
-  { id: 8, name: 'Machine Learning Model', service: 'Data & AI Solutions', status: 'In Progress', date: '2024-12-05', progress: 55 },
-];
+import { getClientProjects, Project } from '../../services/projectApi';
 
 export function Projects() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  const filteredProjects = mockProjects.filter(project => {
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await getClientProjects();
+      setProjects(response.data || []);
+    } catch (err: any) {
+      console.error('Fetch projects error:', err);
+      setError(err.message || 'Failed to load projects');
+      setProjects([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredProjects = projects.filter(project => {
     const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          project.service.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === 'all' || project.status === filterStatus;
@@ -55,6 +67,17 @@ export function Projects() {
             <span>Create New Project</span>
           </Link>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg"
+          >
+            {error}
+          </motion.div>
+        )}
 
         {/* Filters */}
         <motion.div
@@ -94,61 +117,78 @@ export function Projects() {
           </div>
         </motion.div>
 
-        {/* Projects Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProjects.map((project, index) => (
-            <motion.div
-              key={project.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-            >
-              <Link to={`/project/${project.id}`}>
-                <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-lg p-6 hover:shadow-xl transition-all hover:-translate-y-1">
-                  <div className="flex items-start justify-between mb-4">
-                    <FolderOpen className="w-10 h-10 text-blue-600" />
-                    <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusBadge(project.status)}`}>
-                      {project.status}
-                    </span>
-                  </div>
-
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">{project.name}</h3>
-                  <p className="text-gray-600 text-sm mb-4">{project.service}</p>
-
-                  {/* Progress Bar */}
-                  <div className="mb-4">
-                    <div className="flex justify-between text-sm text-gray-600 mb-1">
-                      <span>Progress</span>
-                      <span>{project.progress}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full transition-all"
-                        style={{ width: `${project.progress}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm text-gray-500">
-                    <span>Started: {new Date(project.date).toLocaleDateString()}</span>
-                    <span className="text-blue-600 font-medium">View Details →</span>
-                  </div>
-                </div>
-              </Link>
-            </motion.div>
-          ))}
-        </div>
-
-        {filteredProjects.length === 0 && (
+        {/* Loading State */}
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading projects...</p>
+          </div>
+        ) : filteredProjects.length === 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center py-12"
+            className="text-center py-12 bg-white/80 backdrop-blur-sm rounded-lg shadow-lg"
           >
             <FolderOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-xl text-gray-600">No projects found</p>
-            <p className="text-gray-500 mt-2">Try adjusting your search or filters</p>
+            <p className="text-xl text-gray-600 mb-2">No projects found</p>
+            <p className="text-gray-500 mb-6">
+              {searchTerm || filterStatus !== 'all'
+                ? 'Try adjusting your search or filters'
+                : 'Create your first project to get started'}
+            </p>
+            <Link
+              to="/create-project"
+              className="inline-flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+            >
+              <Plus size={20} />
+              <span>Create New Project</span>
+            </Link>
           </motion.div>
+        ) : (
+          /* Projects Grid */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredProjects.map((project, index) => (
+              <motion.div
+                key={project._id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <Link to={`/project/${project._id}`}>
+                  <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-lg p-6 hover:shadow-xl transition-all hover:-translate-y-1">
+                    <div className="flex items-start justify-between mb-4">
+                      <FolderOpen className="w-10 h-10 text-blue-600" />
+                      <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusBadge(project.status)}`}>
+                        {project.status}
+                      </span>
+                    </div>
+
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">{project.name}</h3>
+                    <p className="text-gray-600 text-sm mb-4">{project.service}</p>
+
+                    {/* Progress Bar */}
+                    <div className="mb-4">
+                      <div className="flex justify-between text-sm text-gray-600 mb-1">
+                        <span>Progress</span>
+                        <span>{project.progress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all"
+                          style={{ width: `${project.progress}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm text-gray-500">
+                      <span>Started: {new Date(project.submissionDate).toLocaleDateString()}</span>
+                      <span className="text-blue-600 font-medium">View Details →</span>
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
         )}
       </div>
     </div>

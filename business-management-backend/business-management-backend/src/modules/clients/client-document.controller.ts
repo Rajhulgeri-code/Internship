@@ -1,13 +1,14 @@
 // src/modules/clients/client-document.controller.ts
 import { Request, Response } from "express";
 import { ClientDocument } from "./client-document.model";
+import { Project } from "./project.model";
 import { uploadToCloudinary, deleteFromCloudinary } from "../../config/cloudinary";
 
 // Upload client document
 export const uploadClientDocument = async (req: Request, res: Response) => {
   try {
-    const { title, description, category, tags } = req.body;
-    const clientId = req.user?.userId; // From auth middleware
+    const { title, description, category, tags, projectId } = req.body;
+    const clientId = req.user?.userId;
     const clientName = req.user?.name || "Client";
 
     if (!req.file) {
@@ -24,15 +25,35 @@ export const uploadClientDocument = async (req: Request, res: Response) => {
       });
     }
 
+    // If projectId is provided, verify it belongs to the client
+    if (projectId) {
+      const project = await Project.findOne({
+        _id: projectId,
+        clientId
+      });
+
+      if (!project) {
+        return res.status(404).json({
+          success: false,
+          message: "Project not found or access denied"
+        });
+      }
+    }
+
     // Upload to Cloudinary in client-documents folder
+    const folderPath = projectId 
+      ? `client-documents/${clientId}/project-${projectId}`
+      : `client-documents/${clientId}`;
+    
     const uploadResult = await uploadToCloudinary(
       req.file.buffer,
-      `client-documents/${clientId}` // Separate folder per client
+      folderPath
     );
 
     // Create document record
     const document = await ClientDocument.create({
       clientId,
+      projectId: projectId || undefined,
       title,
       description,
       fileUrl: uploadResult.secure_url,
@@ -58,12 +79,20 @@ export const uploadClientDocument = async (req: Request, res: Response) => {
   }
 };
 
-// Get all documents for logged-in client
+// Get all documents for logged-in client (optionally filtered by projectId)
 export const getClientDocuments = async (req: Request, res: Response) => {
   try {
     const clientId = req.user?.userId;
+    const { projectId } = req.query;
 
-    const documents = await ClientDocument.find({ clientId })
+    const filter: any = { clientId };
+    
+    // If projectId is provided, filter by it
+    if (projectId) {
+      filter.projectId = projectId;
+    }
+
+    const documents = await ClientDocument.find(filter)
       .sort({ uploadedAt: -1 });
 
     res.status(200).json({
@@ -79,6 +108,43 @@ export const getClientDocuments = async (req: Request, res: Response) => {
   }
 };
 
+// Get documents for a specific project
+export const getProjectDocuments = async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params;
+    const clientId = req.user?.userId;
+
+    // Verify project belongs to client
+    const project = await Project.findOne({
+      _id: projectId,
+      clientId
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found or access denied"
+      });
+    }
+
+    const documents = await ClientDocument.find({
+      projectId,
+      clientId
+    }).sort({ uploadedAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: documents
+    });
+  } catch (error: any) {
+    console.error('Get project documents error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch project documents"
+    });
+  }
+};
+
 // Get single document
 export const getClientDocumentById = async (req: Request, res: Response) => {
   try {
@@ -87,7 +153,7 @@ export const getClientDocumentById = async (req: Request, res: Response) => {
 
     const document = await ClientDocument.findOne({
       _id: id,
-      clientId // Ensure client can only access their own documents
+      clientId
     });
 
     if (!document) {
@@ -114,7 +180,7 @@ export const getClientDocumentById = async (req: Request, res: Response) => {
 export const updateClientDocument = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { title, description, category, tags } = req.body;
+    const { title, description, category, tags, projectId } = req.body;
     const clientId = req.user?.userId;
 
     const document = await ClientDocument.findOne({
@@ -129,11 +195,27 @@ export const updateClientDocument = async (req: Request, res: Response) => {
       });
     }
 
+    // If updating projectId, verify it belongs to the client
+    if (projectId) {
+      const project = await Project.findOne({
+        _id: projectId,
+        clientId
+      });
+
+      if (!project) {
+        return res.status(404).json({
+          success: false,
+          message: "Project not found or access denied"
+        });
+      }
+    }
+
     // Update fields
     if (title) document.title = title;
     if (description !== undefined) document.description = description;
     if (category) document.category = category;
     if (tags) document.tags = JSON.parse(tags);
+    if (projectId !== undefined) document.projectId = projectId || undefined;
 
     await document.save();
 

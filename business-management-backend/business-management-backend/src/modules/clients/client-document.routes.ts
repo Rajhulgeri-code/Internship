@@ -6,7 +6,8 @@ import {
   getClientDocuments,
   getClientDocumentById,
   updateClientDocument,
-  deleteClientDocument
+  deleteClientDocument,
+  getProjectDocuments
 } from "./client-document.controller";
 import { clientAuthMiddleware } from "../../middlewares/client-auth.middleware";
 
@@ -46,11 +47,14 @@ const upload = multer({
 // All routes require client authentication
 router.use(clientAuthMiddleware);
 
-// Upload document
+// Upload document (can be linked to project via projectId in body)
 router.post("/upload", upload.single("file"), uploadClientDocument);
 
-// Get all documents for logged-in client
+// Get all documents for logged-in client (can filter by projectId via query param)
 router.get("/", getClientDocuments);
+
+// Get documents for a specific project
+router.get("/project/:projectId", getProjectDocuments);
 
 // Get single document
 router.get("/:id", getClientDocumentById);

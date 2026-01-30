@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface IClientDocument extends Document {
   clientId: mongoose.Types.ObjectId;
+  projectId?: mongoose.Types.ObjectId; // Link to project (optional)
   title: string;
   description?: string;
   fileUrl: string;
@@ -20,6 +21,11 @@ const ClientDocumentSchema = new Schema<IClientDocument>({
     type: Schema.Types.ObjectId,
     ref: "Client",
     required: true,
+    index: true
+  },
+  projectId: {
+    type: Schema.Types.ObjectId,
+    ref: "Project",
     index: true
   },
   title: {
@@ -68,5 +74,6 @@ const ClientDocumentSchema = new Schema<IClientDocument>({
 
 // Index for faster queries
 ClientDocumentSchema.index({ clientId: 1, uploadedAt: -1 });
+ClientDocumentSchema.index({ projectId: 1, uploadedAt: -1 });
 
 export const ClientDocument = mongoose.model<IClientDocument>("ClientDocument", ClientDocumentSchema);

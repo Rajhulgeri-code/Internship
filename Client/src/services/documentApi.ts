@@ -12,6 +12,7 @@ const getAuthHeaders = () => {
 export interface ClientDocument {
   _id: string;
   clientId: string;
+  projectId?: string; // Optional project link
   title: string;
   description?: string;
   fileUrl: string;
@@ -30,6 +31,7 @@ export interface UploadDocumentData {
   category?: string;
   tags?: string[];
   file: File;
+  projectId?: string; // Optional project ID to link document
 }
 
 // Upload document
@@ -41,6 +43,7 @@ export const uploadClientDocument = async (data: UploadDocumentData) => {
     if (data.description) formData.append("description", data.description);
     if (data.category) formData.append("category", data.category);
     if (data.tags) formData.append("tags", JSON.stringify(data.tags));
+    if (data.projectId) formData.append("projectId", data.projectId);
 
     const response = await fetch(`${API_BASE_URL}/clients/documents/upload`, {
       method: "POST",
@@ -60,10 +63,14 @@ export const uploadClientDocument = async (data: UploadDocumentData) => {
   }
 };
 
-// Get all client documents
-export const getClientDocuments = async () => {
+// Get all client documents (optionally filtered by projectId)
+export const getClientDocuments = async (projectId?: string) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/clients/documents`, {
+    const url = projectId 
+      ? `${API_BASE_URL}/clients/documents?projectId=${projectId}`
+      : `${API_BASE_URL}/clients/documents`;
+
+    const response = await fetch(url, {
       method: "GET",
       headers: {
         ...getAuthHeaders(),
@@ -75,6 +82,29 @@ export const getClientDocuments = async () => {
 
     if (!response.ok) {
       throw new Error(result.message || "Failed to fetch documents");
+    }
+
+    return result;
+  } catch (error: any) {
+    throw new Error(error.message || "Network error");
+  }
+};
+
+// Get documents for a specific project
+export const getProjectDocuments = async (projectId: string) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/clients/documents/project/${projectId}`, {
+      method: "GET",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || "Failed to fetch project documents");
     }
 
     return result;
@@ -114,6 +144,7 @@ export const updateClientDocument = async (
     description?: string;
     category?: string;
     tags?: string[];
+    projectId?: string;
   }
 ) => {
   try {

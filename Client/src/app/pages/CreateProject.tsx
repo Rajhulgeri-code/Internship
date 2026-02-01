@@ -6,34 +6,64 @@ import { createProject } from '../../services/projectApi';
 
 export function CreateProject() {
   const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
+    // Project basics
     name: '',
     description: '',
     service: '',
+    projectType: '',
+    priority: 'Medium',
     expectedCompletion: '',
+
+    // Client info
+    clientName: '',
+    companyName: '',
+    clientEmail: '',
+    clientContact: '',
+
+    // Technical
+    techStack: '',
+    platform: '',
+    integrations: '',
+
+    // Commercial
+    budgetRange: '',
+    engagementModel: '',
+
+    // Extra
+    notes: '',
   });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!formData.name.trim() || !formData.description.trim() || !formData.service || !formData.expectedCompletion) {
-      setError('Please fill in all required fields');
+    if (
+      !formData.name ||
+      !formData.description ||
+      !formData.service ||
+      !formData.clientEmail ||
+      !formData.expectedCompletion
+    ) {
+      setError('Please fill all required fields');
       return;
     }
 
     try {
       setLoading(true);
-      await createProject({
-        name: formData.name,
-        service: formData.service,
-        description: formData.description,
-        expectedCompletion: formData.expectedCompletion
-      });
-      
-      // Show success and redirect
+      await createProject(formData);
       alert('Project created successfully!');
       navigate('/projects');
     } catch (err: any) {
@@ -43,174 +73,211 @@ export function CreateProject() {
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-100 pt-24 pb-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
-          >
-            <ArrowLeft size={20} className="mr-2" />
-            Back to Dashboard
-          </button>
-          <h1 className="text-3xl font-bold text-gray-900">Create New Project</h1>
-          <p className="text-gray-600 mt-1">Submit a new project request to InnoInfinite Solutions</p>
-        </div>
+      <div className="max-w-5xl mx-auto px-4">
 
-        {/* Error Message */}
+        {/* Header */}
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
+        >
+          <ArrowLeft size={20} className="mr-2" />
+          Back to Dashboard
+        </button>
+
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">
+          Create New Project
+        </h1>
+
         {error && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg flex justify-between items-center"
-          >
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg flex justify-between">
             <span>{error}</span>
-            <button onClick={() => setError('')}><X size={20} /></button>
-          </motion.div>
+            <button onClick={() => setError('')}>
+              <X size={18} />
+            </button>
+          </div>
         )}
 
-        {/* Form */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-8"
-        >
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Project Name */}
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                Project Title *
-              </label>
+        <motion.div className="bg-white rounded-lg shadow-lg p-8">
+          <form onSubmit={handleSubmit} className="space-y-8">
+
+            {/* PROJECT DETAILS */}
+            <section>
+              <h2 className="text-xl font-semibold mb-4">Project Details</h2>
+
               <input
-                id="name"
                 name="name"
-                type="text"
-                required
+                placeholder="Project Title *"
                 value={formData.name}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter project title"
+                className="form-input"
               />
-            </div>
 
-            {/* Service Type */}
-            <div>
-              <label htmlFor="service" className="block text-sm font-medium text-gray-700 mb-2">
-                Service Type *
-              </label>
-              <select
-                id="service"
-                name="service"
-                required
-                value={formData.service}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Select a service</option>
-                <option value="Engineering Design">Engineering Design Services</option>
-                <option value="Technical Documentation">Technical Documentation</option>
-                <option value="Software Development">Software Development</option>
-                <option value="UI / UX Design">UI / UX Design</option>
-                <option value="Data & AI Solutions">Data & AI Solutions</option>
-                <option value="Staffing">Staffing & Resource Augmentation</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
-            {/* Description */}
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                Project Description *
-              </label>
               <textarea
-                id="description"
                 name="description"
-                required
-                rows={6}
+                rows={5}
+                placeholder="Project Description *"
                 value={formData.description}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Describe your project requirements in detail..."
+                className="form-textarea"
               />
-            </div>
 
-            {/* Expected Completion Date */}
-            <div>
-              <label htmlFor="expectedCompletion" className="block text-sm font-medium text-gray-700 mb-2">
-                Expected Completion Date *
-              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <select
+                  name="service"
+                  value={formData.service}
+                  onChange={handleChange}
+                  className="form-select"
+                >
+                  <option value="">Service Type *</option>
+                  <option>Software Development</option>
+                  <option>UI / UX Design</option>
+                  <option>Data & AI</option>
+                  <option>Cloud & DevOps</option>
+                  <option>Maintenance</option>
+                </select>
+
+                <select
+                  name="projectType"
+                  value={formData.projectType}
+                  onChange={handleChange}
+                  className="form-select"
+                >
+                  <option value="">Project Type</option>
+                  <option>New Development</option>
+                  <option>Enhancement</option>
+                  <option>Migration</option>
+                  <option>Support</option>
+                </select>
+              </div>
+            </section>
+
+            {/* CLIENT INFO */}
+            <section>
+              <h2 className="text-xl font-semibold mb-4">Client Information</h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  name="clientName"
+                  placeholder="Client Name"
+                  value={formData.clientName}
+                  onChange={handleChange}
+                  className="form-input"
+                />
+
+                <input
+                  name="companyName"
+                  placeholder="Company Name"
+                  value={formData.companyName}
+                  onChange={handleChange}
+                  className="form-input"
+                />
+
+                <input
+                  name="clientEmail"
+                  type="email"
+                  placeholder="Client Email *"
+                  value={formData.clientEmail}
+                  onChange={handleChange}
+                  className="form-input"
+                />
+
+                <input
+                  name="clientContact"
+                  placeholder="Contact Number"
+                  value={formData.clientContact}
+                  onChange={handleChange}
+                  className="form-input"
+                />
+              </div>
+            </section>
+
+            {/* TECH */}
+            <section>
+              <h2 className="text-xl font-semibold mb-4">
+                Technical Requirements
+              </h2>
+
               <input
-                id="expectedCompletion"
-                name="expectedCompletion"
+                name="techStack"
+                placeholder="Preferred Tech Stack (React, Node, AWS...)"
+                value={formData.techStack}
+                onChange={handleChange}
+                className="form-input"
+              />
+
+              <input
+                name="integrations"
+                placeholder="Third-party Integrations (Payments, APIs, etc.)"
+                value={formData.integrations}
+                onChange={handleChange}
+                className="form-input"
+              />
+            </section>
+
+            {/* COMMERCIAL */}
+            <section>
+              <h2 className="text-xl font-semibold mb-4">Budget & Planning</h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <select
+                  name="budgetRange"
+                  value={formData.budgetRange}
+                  onChange={handleChange}
+                  className="form-select"
+                >
+                  <option value="">Budget Range</option>
+                  <option>Below ₹50,000</option>
+                  <option>₹50,000 – ₹2,00,000</option>
+                  <option>₹2,00,000+</option>
+                </select>
+
+                <select
+                  name="engagementModel"
+                  value={formData.engagementModel}
+                  onChange={handleChange}
+                  className="form-select"
+                >
+                  <option value="">Engagement Model</option>
+                  <option>Fixed Price</option>
+                  <option>Hourly</option>
+                  <option>Monthly Retainer</option>
+                </select>
+              </div>
+
+              <input
                 type="date"
-                required
+                name="expectedCompletion"
                 value={formData.expectedCompletion}
                 onChange={handleChange}
-                min={new Date().toISOString().split('T')[0]}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="form-input"
               />
-              <p className="mt-2 text-sm text-gray-500">
-                When would you like this project to be completed?
-              </p>
-            </div>
+            </section>
 
-            {/* Submit Buttons */}
-            <div className="flex items-center space-x-4 pt-6">
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Creating Project...
-                  </>
-                ) : (
-                  'Submit Project'
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/dashboard')}
-                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg hover:bg-gray-200 transition-colors font-semibold"
-              >
-                Cancel
-              </button>
-            </div>
+            {/* NOTES */}
+            <section>
+              <h2 className="text-xl font-semibold mb-4">Additional Notes</h2>
+              <textarea
+                name="notes"
+                rows={4}
+                placeholder="Any additional instructions or expectations"
+                value={formData.notes}
+                onChange={handleChange}
+                className="form-textarea"
+              />
+            </section>
+
+            {/* ACTIONS */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? 'Creating Project...' : 'Submit Project'}
+            </button>
+
           </form>
-        </motion.div>
-
-        {/* Info Box */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="mt-8 bg-blue-50/80 backdrop-blur-sm border border-blue-200 rounded-lg p-6"
-        >
-          <div className="flex items-start">
-            <FileText className="w-6 h-6 text-blue-600 mr-3 flex-shrink-0 mt-1" />
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">What happens next?</h3>
-              <ul className="space-y-2 text-gray-600 text-sm">
-                <li>• Your project will be submitted to our team for review</li>
-                <li>• You'll receive an email confirmation within 24 hours</li>
-                <li>• Our project manager will contact you to discuss details</li>
-                <li>• Track your project progress in the dashboard</li>
-                <li>• Upload documents anytime from the project details page</li>
-              </ul>
-            </div>
-          </div>
         </motion.div>
       </div>
     </div>

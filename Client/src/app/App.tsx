@@ -13,7 +13,7 @@ import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { Dashboard } from './pages/Dashboard';
 import { Projects } from './pages/Projects';
-import { ProjectDetails } from './pages/ProjectDetails';
+import ProjectDetails from "./pages/ProjectDetails";
 import { CreateProject } from './pages/CreateProject';
 import { CompanyOverview } from './pages/CompanyOverview';
 
@@ -124,15 +124,15 @@ function AppContent() {
             }
           />
           <Route
-            path="/project/:id"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <ProjectDetails />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
+  path="/projects/:projectId"
+  element={
+    <ProtectedRoute>
+      <Layout>
+        <ProjectDetails />
+      </Layout>
+    </ProtectedRoute>
+  }
+/>
           <Route
             path="/create-project"
             element={

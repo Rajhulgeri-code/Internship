@@ -1,206 +1,259 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { FileText, Upload } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { motion } from 'motion/react';
 import {
-  getProjectById,
-  uploadProjectDocument,
-  Project,
-} from "../../services/projectApi";
+  ArrowLeft,
+  Download,
+  MessageSquare,
+  CheckCircle,
+  Clock,
+  Upload,
+  X
+} from 'lucide-react';
 
-export default function ProjectDetails() {
-  const { projectId } = useParams<{ projectId: string }>();
+import { getProjectById, Project } from '../../services/projectApi';
+import {
+  getProjectDocuments,
+  uploadClientDocument,
+  deleteClientDocument,
+  ClientDocument
+} from '../../services/documentApi';
+
+export function ProjectDetails() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+
   const [project, setProject] = useState<Project | null>(null);
+  const [documents, setDocuments] = useState<ClientDocument[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState(false);
+
+  const [uploadForm, setUploadForm] = useState({
+    title: '',
+    description: '',
+    category: 'other',
+    file: null as File | null
+  });
 
   useEffect(() => {
-    if (projectId) {
-      fetchProject();
-    }
-  }, [projectId]);
+    if (!id) return;
+    fetchProjectData();
+    fetchDocuments();
+  }, [id]);
 
-  const fetchProject = async () => {
-    if (!projectId) return;
-
+  const fetchProjectData = async () => {
     try {
-      const data = await getProjectById(projectId);
-      setProject(data);
-    } catch (error) {
-      console.error("Failed to fetch project:", error);
-      setProject(null);
+      setLoading(true);
+      const res = await getProjectById(id!);
+      setProject(res.data);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load project');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    if (!e.target.files?.length || !projectId) return;
-
+  const fetchDocuments = async () => {
     try {
-      await uploadProjectDocument(projectId, e.target.files[0]);
-      fetchProject(); // refresh after upload
-    } catch (error) {
-      console.error("Document upload failed:", error);
+      const res = await getProjectDocuments(id!);
+      setDocuments(res.data);
+    } catch (err) {
+      console.error('Failed to load documents', err);
     }
   };
 
-  /* =====================
-     SAFE RENDER STATES
-     ===================== */
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.[0]) {
+      setUploadForm({ ...uploadForm, file: e.target.files[0] });
+    }
+  };
+
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!uploadForm.file || !uploadForm.title.trim()) {
+      setError('Please provide both file and title');
+      return;
+    }
+
+    try {
+      setUploadLoading(true);
+      await uploadClientDocument({
+        title: uploadForm.title,
+        description: uploadForm.description,
+        category: uploadForm.category,
+        file: uploadForm.file,
+        projectId: id!
+      });
+
+      setShowUploadModal(false);
+      setUploadForm({ title: '', description: '', category: 'other', file: null });
+      fetchDocuments();
+      setError('');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to upload document');
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  const handleDeleteDocument = async (docId: string) => {
+    if (!window.confirm('Are you sure you want to delete this document?')) return;
+
+    try {
+      await deleteClientDocument(docId);
+      fetchDocuments();
+    } catch (err: any) {
+      setError(err?.message || 'Failed to delete document');
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  const getStatusBadge = (status: string) => {
+    const map: Record<string, string> = {
+      Submitted: 'bg-blue-100 text-blue-800',
+      'In Progress': 'bg-yellow-100 text-yellow-800',
+      Completed: 'bg-green-100 text-green-800',
+      'In Review': 'bg-purple-100 text-purple-800'
+    };
+    return map[status] || 'bg-gray-100 text-gray-800';
+  };
 
   if (loading) {
     return (
-      <div className="p-8 text-gray-600">
-        Loading project details…
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin h-12 w-12 border-b-2 border-blue-600 rounded-full" />
       </div>
     );
   }
 
   if (!project) {
     return (
-      <div className="p-8 text-red-600">
-        Project not found or access denied.
+      <div className="text-center pt-24">
+        <h1 className="text-3xl font-bold">Project not found</h1>
+        <button onClick={() => navigate('/projects')} className="text-blue-600 mt-4">
+          Back to Projects
+        </button>
       </div>
     );
   }
 
-  /* =====================
-     MAIN UI
-     ===================== */
-
   return (
-    <div className="max-w-6xl mx-auto p-8 space-y-8">
+    <div className="min-h-screen pt-24 pb-12 bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-100">
+      <div className="max-w-7xl mx-auto px-4">
 
-      {/* HEADER */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">{project.name}</h1>
-          <p className="text-gray-600">{project.service}</p>
+        <button
+          onClick={() => navigate('/projects')}
+          className="flex items-center text-gray-600 mb-6"
+        >
+          <ArrowLeft className="mr-2" /> Back to Projects
+        </button>
+
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-4xl font-bold">{project.name}</h1>
+            <p className="text-gray-600">{project.service}</p>
+          </div>
+          <span className={`px-4 py-2 rounded-full text-sm font-semibold ${getStatusBadge(project.status)}`}>
+            {project.status}
+          </span>
         </div>
-        <span className="px-4 py-1 rounded-full bg-blue-100 text-blue-700">
-          {project.status}
-        </span>
-      </div>
 
-      {/* OVERVIEW */}
-      <Section title="Project Overview">
-        <Info label="Progress" value={`${project.progress || 0}%`} />
-        <Info label="Expected Completion" value={project.expectedCompletion} />
-        <Info label="Priority" value={project.priority} />
-        <Info label="Project Type" value={project.projectType} />
-      </Section>
+        {error && (
+          <div className="mb-6 p-4 bg-red-100 text-red-600 rounded flex justify-between">
+            {error}
+            <button onClick={() => setError('')}>
+              <X />
+            </button>
+          </div>
+        )}
 
-      {/* TECH */}
-      <Section title="Technical Requirements">
-        <Info label="Tech Stack" value={project.techStack} />
-        <Info label="Platform" value={project.platform} />
-        <Info label="Integrations" value={project.integrations} />
-      </Section>
-
-      {/* COMMERCIAL */}
-      <Section title="Commercial Details">
-        <Info label="Budget" value={project.budgetRange} />
-        <Info label="Engagement Model" value={project.engagementModel} />
-      </Section>
-
-      {/* DESCRIPTION */}
-      <Section title="Project Description">
-        <p className="text-gray-700 col-span-2">
-          {project.description}
-        </p>
-      </Section>
-
-      {/* NOTES */}
-      <Section title="Additional Notes">
-        <p className="text-gray-700 col-span-2">
-          {project.notes || "—"}
-        </p>
-      </Section>
-
-      {/* DOCUMENTS */}
-      <Section title="Documents">
-        <div className="col-span-2">
-
-          <div className="flex justify-end mb-4">
-            <label className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2">
-              <Upload size={16} />
-              Upload
-              <input type="file" hidden onChange={handleUpload} />
-            </label>
+        {/* DOCUMENTS */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Documents</h2>
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="p-2 bg-blue-600 text-white rounded"
+            >
+              <Upload size={18} />
+            </button>
           </div>
 
-          {project.documents && project.documents.length > 0 ? (
-            <ul className="space-y-3">
-              {project.documents.map((doc) => (
-                <li
-                  key={doc._id}
-                  className="flex justify-between items-center border p-4 rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <FileText />
-                    <div>
-                      <p className="font-medium">{doc.fileName}</p>
-                      <p className="text-sm text-gray-500">
-                        Uploaded on{" "}
-                        {new Date(doc.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
+          {documents.length ? (
+            documents.map(doc => (
+              <div
+                key={doc._id}
+                className="flex justify-between items-center p-3 bg-gray-50 rounded mb-2"
+              >
+                <div>
+                  <p className="font-medium">{doc.title}</p>
+                  <p className="text-xs text-gray-600">
+                    {formatFileSize(doc.fileSize)}
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
                   <a
-                    href={doc.url}
+                    href={doc.fileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
+                    className="p-2 hover:bg-white rounded"
                   >
-                    View
+                    <Download size={16} />
                   </a>
-                </li>
-              ))}
-            </ul>
+                  <button
+                    onClick={() => handleDeleteDocument(doc._id)}
+                    className="p-2 hover:bg-white rounded"
+                  >
+                    <X size={16} className="text-red-600" />
+                  </button>
+                </div>
+              </div>
+            ))
           ) : (
-            <p className="text-gray-500 text-center py-6">
-              No documents uploaded
-            </p>
+            <p className="text-gray-500 text-center">No documents uploaded</p>
           )}
         </div>
-      </Section>
-    </div>
-  );
-}
 
-/* =====================
-   REUSABLE COMPONENTS
-   ===================== */
+        {/* UPLOAD MODAL */}
+        {showUploadModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+            <div className="bg-white p-6 rounded-lg w-full max-w-md">
+              <h2 className="text-xl font-bold mb-4">Upload Document</h2>
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-xl font-semibold mb-4">{title}</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {children}
+              <form onSubmit={handleUpload} className="space-y-4">
+                <input
+                  type="file"
+                  onChange={handleFileChange}
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Title"
+                  value={uploadForm.title}
+                  onChange={e => setUploadForm({ ...uploadForm, title: e.target.value })}
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={uploadLoading}
+                  className="w-full bg-blue-600 text-white py-2 rounded"
+                >
+                  {uploadLoading ? 'Uploading...' : 'Upload'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
-  );
-}
-
-function Info({
-  label,
-  value,
-}: {
-  label: string;
-  value?: string | number;
-}) {
-  return (
-    <div>
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className="font-medium">{value || "—"}</p>
     </div>
   );
 }

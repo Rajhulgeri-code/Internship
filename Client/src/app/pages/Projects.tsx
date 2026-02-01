@@ -154,7 +154,7 @@ export function Projects() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
               >
-                <Link to={`/projects/${project._id}`}>
+                <Link to={`/project/${project._id}`}>
                   <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-lg p-6 hover:shadow-xl transition-all hover:-translate-y-1">
                     <div className="flex items-start justify-between mb-4">
                       <FolderOpen className="w-10 h-10 text-blue-600" />

@@ -1,6 +1,10 @@
-// src/modules/clients/client-document.routes.ts
+// Express router for client document-related routes
 import { Router } from "express";
+
+// Multer is used to handle file uploads
 import multer from "multer";
+
+// Controller functions for client document operations
 import {
   uploadClientDocument,
   getClientDocuments,
@@ -9,60 +13,105 @@ import {
   deleteClientDocument,
   getProjectDocuments
 } from "./client-document.controller";
+
+// Middleware to allow only authenticated clients
 import { clientAuthMiddleware } from "../../middlewares/client-auth.middleware";
 
+// Middleware for general authentication (admin / authenticated users)
+import { authMiddleware } from "../../middlewares/auth.middleware";
+
+// Initialize Express router
 const router = Router();
 
-// Configure multer for memory storage
+// ======================================================
+// MULTER CONFIGURATION (In-memory file storage)
+// ======================================================
+
+// Store uploaded files in memory (buffer) instead of disk
 const storage = multer.memoryStorage();
+
+// Multer upload configuration
 const upload = multer({
   storage,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 10 * 1024 * 1024 // Maximum file size: 10MB
   },
   fileFilter: (req, file, cb) => {
-    // Allow all document types
+    // Allowed MIME types for uploads
     const allowedMimes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-powerpoint',
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'image/jpeg',
-      'image/png',
-      'image/jpg',
-      'text/plain'
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "image/jpeg",
+      "image/png",
+      "image/jpg",
+      "text/plain"
     ];
 
+    // Validate file type
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only PDF, Word, Excel, PowerPoint, images, and text files are allowed.'));
+      cb(
+        new Error(
+          "Invalid file type. Only PDF, Word, Excel, PowerPoint, images, and text files are allowed."
+        )
+      );
     }
   }
 });
 
-// All routes require client authentication
+// ======================================================
+// ADMIN ROUTES
+// ======================================================
+
+// ======================================================
+// CLIENT ROUTES (Client authentication required)
+// ======================================================
+
+// Apply client-only authentication middleware to all routes below
 router.use(clientAuthMiddleware);
 
-// Upload document (can be linked to project via projectId in body)
-router.post("/upload", upload.single("file"), uploadClientDocument);
+// Upload a new document (Client)
+router.post(
+  "/upload",
+  upload.single("file"),
+  uploadClientDocument
+);
 
-// Get all documents for logged-in client (can filter by projectId via query param)
-router.get("/", getClientDocuments);
+// Get all documents for the logged-in client
+router.get(
+  "/",
+  getClientDocuments
+);
 
-// Get documents for a specific project
-router.get("/project/:projectId", getProjectDocuments);
+// Get documents for a specific project (Client)
+router.get(
+  "/project/:projectId",
+  getProjectDocuments
+);
 
-// Get single document
-router.get("/:id", getClientDocumentById);
+// Get a single document by ID (Client)
+router.get(
+  "/:id",
+  getClientDocumentById
+);
 
-// Update document metadata
-router.put("/:id", updateClientDocument);
+// Update document metadata (Client)
+router.put(
+  "/:id",
+  updateClientDocument
+);
 
-// Delete document
-router.delete("/:id", deleteClientDocument);
+// Delete a document (Client)
+router.delete(
+  "/:id",
+  deleteClientDocument
+);
 
+// Export router
 export default router;

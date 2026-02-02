@@ -31,8 +31,7 @@ import {
   SelectValue,
 } from '../ui/select';
 import { toast } from 'sonner';
-import { uploadDocument, getAllDocuments, deleteDocument as apiDeleteDocument, getToken } from '../../services/api';
-
+import { uploadDocument, getAllDocuments, deleteDocument as apiDeleteDocument, getToken, getAllClientDocuments } from '../../services/api';
 interface Document {
   _id?: string;
   id?: number;
@@ -85,7 +84,7 @@ export default function Documents() {
   const [adminSearchQuery, setAdminSearchQuery] = useState('');
   const [selectedClientFilter, setSelectedClientFilter] = useState('All');
   const [selectedProjectFilter, setSelectedProjectFilter] = useState('All');
-  const [clientDocuments, setClientDocuments] = useState<Document[]>(mockClientDocuments);
+  const [clientDocuments, setClientDocuments] = useState<Document[]>([]);
   const [adminDocuments, setAdminDocuments] = useState<Document[]>([]);
   const [isAddAdminDocDialogOpen, setIsAddAdminDocDialogOpen] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(false);
@@ -98,23 +97,62 @@ export default function Documents() {
   });
 
   // Fetch admin documents from backend
-  useEffect(() => {
-    fetchAdminDocuments();
-  }, []);
+  // Fetch admin documents and client documents from backend
+useEffect(() => {
+  fetchAdminDocuments();
+  fetchClientDocuments(); // Add this line
+}, []);
 
-  const fetchAdminDocuments = async () => {
-    try {
-      const token = getToken();
-      if (!token) return;
+const fetchAdminDocuments = async () => {
+  try {
+    const token = getToken();
+    if (!token) return;
 
-      const response = await getAllDocuments(token);
-      if (response.success) {
-        setAdminDocuments(response.data);
-      }
-    } catch (error: any) {
-      console.error('Error fetching documents:', error);
+    const response = await getAllDocuments(token);
+    if (response.success) {
+      setAdminDocuments(response.data);
     }
-  };
+  } catch (error: any) {
+    console.error('Error fetching admin documents:', error);
+  }
+};
+
+// Add this new function
+const fetchClientDocuments = async () => {
+  try {
+    const token = getToken();
+    if (!token) return;
+
+    const response = await getAllClientDocuments(token);
+    if (response.success) {
+      // Map the client documents to match your interface
+      const mappedDocs = response.data.map((doc: any) => ({
+        _id: doc._id,
+        title: doc.title,
+        name: doc.title,
+        type: doc.fileType?.split('/')[1]?.toUpperCase() || 'FILE',
+        fileType: doc.fileType,
+        size: formatFileSize(doc.fileSize),
+        fileSize: doc.fileSize,
+        uploadedBy: doc.clientId?.name || 'Unknown',
+        date: new Date(doc.uploadedAt).toLocaleDateString(),
+        createdAt: doc.uploadedAt,
+        category: doc.category,
+        source: 'client' as const,
+        client: doc.clientId?.companyName || 'Unknown Company',
+        project: doc.projectId?.name || 'No Project',
+        description: doc.description,
+        fileUrl: doc.fileUrl,
+        fileName: doc.title
+      }));
+      
+      setClientDocuments(mappedDocs);
+    }
+  } catch (error: any) {
+    console.error('Error fetching client documents:', error);
+    toast.error('Failed to load client documents');
+  }
+};
 
   // Get unique clients and projects for filters
   const uniqueClients = ['All', ...Array.from(new Set(clientDocuments.map(doc => doc.client).filter(Boolean)))];
@@ -212,9 +250,30 @@ export default function Documents() {
     }
   };
 
-  const handleDeleteClientDocument = (docId: number) => {
-    setClientDocuments(clientDocuments.filter(d => d.id !== docId));
+  const handleDeleteClientDocument = async (docId: string) => {
+  try {
+    const token = getToken();
+    if (!token) {
+      toast.error('You must be logged in');
+      return;
+    }
+
+    // Note: You'll need to create a delete endpoint for client documents
+    // For now, just remove from local state
+    setClientDocuments(clientDocuments.filter(d => d._id !== docId));
     toast.success('Client document deleted successfully');
+    
+    // TODO: Add actual API call when delete endpoint is ready
+    // await deleteClientDocument(docId, token);
+    // await fetchClientDocuments();
+  } catch (error: any) {
+    toast.error(error.message || 'Delete failed');
+  }
+};
+
+  const handleDownload = (fileUrl: string, fileName: string) => {
+    window.open(fileUrl, '_blank');
+    toast.success(`Opening ${fileName}...`);
   };
 
   const handleDeleteAdminDocument = async (docId: string) => {
@@ -226,19 +285,15 @@ export default function Documents() {
       }
 
       const response = await apiDeleteDocument(docId, token);
-      
       if (response.success) {
-        toast.success('Document deleted successfully');
-        await fetchAdminDocuments();
+        setAdminDocuments(adminDocuments.filter(d => d._id !== docId));
+        toast.success('Admin document deleted successfully');
+      } else {
+        toast.error(response.message || 'Delete failed');
       }
     } catch (error: any) {
       toast.error(error.message || 'Delete failed');
     }
-  };
-
-  const handleDownload = (fileUrl: string, fileName: string) => {
-    window.open(fileUrl, '_blank');
-    toast.success(`Opening ${fileName}...`);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -348,7 +403,7 @@ export default function Documents() {
                 </SelectTrigger>
                 <SelectContent>
                   {uniqueClients.map(client => (
-                    <SelectItem key={client} value={client}>{client}</SelectItem>
+                    <SelectItem key={client ?? ''} value={client ?? ''}>{client ?? 'Unknown'}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -358,7 +413,7 @@ export default function Documents() {
                 </SelectTrigger>
                 <SelectContent>
                   {uniqueProjects.map(project => (
-                    <SelectItem key={project} value={project}>{project}</SelectItem>
+                    <SelectItem key={project ?? ''} value={project ?? ''}>{project ?? 'Unknown'}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -412,18 +467,54 @@ export default function Documents() {
                         <TableCell className="text-sm">{doc.uploadedBy}</TableCell>
                         <TableCell className="text-sm">{doc.date}</TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end space-x-2">
-                            <Button variant="ghost" size="sm" title="View document">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => doc.name && handleDownload('', doc.name)} title="Download document">
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => doc.id && handleDeleteClientDocument(doc.id)} title="Delete document">
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
-                          </div>
-                        </TableCell>
+  <div className="flex items-center justify-end space-x-2">
+    <Button 
+      variant="ghost" 
+      size="sm" 
+      title="View document"
+      onClick={() => {
+        console.log('Opening:', doc.fileUrl);
+        if (doc.fileUrl) {
+          window.open(doc.fileUrl, '_blank');
+        } else {
+          toast.error('File URL not found');
+        }
+      }}
+    >
+      <Eye className="h-4 w-4" />
+    </Button>
+    <Button 
+      variant="ghost" 
+      size="sm" 
+      onClick={() => {
+        console.log('Downloading:', doc.fileUrl);
+        if (doc.fileUrl) {
+          const link = document.createElement('a');
+          link.href = doc.fileUrl;
+          link.download = doc.fileName || doc.title || 'download';
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          toast.success('Opening file...');
+        } else {
+          toast.error('File URL not found');
+        }
+      }}
+      title="Download document"
+    >
+      <Download className="h-4 w-4" />
+    </Button>
+    <Button 
+      variant="ghost" 
+      size="sm" 
+      onClick={() => doc._id && handleDeleteClientDocument(doc._id)} 
+      title="Delete document"
+    >
+      <Trash2 className="h-4 w-4 text-red-500" />
+    </Button>
+  </div>
+</TableCell>
                       </TableRow>
                     ))
                   ) : (
@@ -596,7 +687,7 @@ export default function Documents() {
                 <TableBody>
                   {filteredAdminDocuments.length > 0 ? (
                     filteredAdminDocuments.map((doc) => (
-                      <TableRow key={doc._id} className="hover:bg-gray-50">
+                      <TableRow key={doc._id || doc.id} className="hover:bg-gray-50">
                         <TableCell className="font-medium">
                           <div className="flex items-center space-x-2">
                             {fileIcons[doc.fileType as keyof typeof fileIcons] || <File className="h-5 w-5 text-gray-500" />}

@@ -1,4 +1,6 @@
 // src/app.ts
+import adminDashboardRoutes from './modules/auth/dashboard.routes';
+import clientDashboardRoutes from './modules/clients/client-dashboard.routes';
 import express from "express";
 import cors from "cors";
 import authRoutes from "./modules/auth/auth.routes";
@@ -12,7 +14,7 @@ const app = express();
 
 // Middlewares
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: "http://localhost:5173",    
   credentials: true
 }));
 app.use(express.json());
@@ -47,3 +49,7 @@ app.use("/api/documents", documentRoutes);
 app.use(errorMiddleware);
 
 export default app;
+
+// Dashboard routes
+app.use('/api/admin/dashboard', adminDashboardRoutes);
+app.use('/api/clients/dashboard', clientDashboardRoutes);
